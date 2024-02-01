@@ -30,9 +30,11 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         pass
 
     # Set up rasterization configuration
+    # 计算视锥体的tan
     tanfovx = math.tan(viewpoint_camera.FoVx * 0.5)
     tanfovy = math.tan(viewpoint_camera.FoVy * 0.5)
 
+    # 设置光栅化相关参数
     raster_settings = GaussianRasterizationSettings(
         image_height=int(viewpoint_camera.image_height),
         image_width=int(viewpoint_camera.image_width),
@@ -47,7 +49,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         prefiltered=False,
         debug=pipe.debug
     )
-
+    # 构造高斯光栅化器
     rasterizer = GaussianRasterizer(raster_settings=raster_settings)
 
     means3D = pc.get_xyz
@@ -72,6 +74,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     if override_color is None:
         if pipe.convert_SHs_python:
             shs_view = pc.get_features.transpose(1, 2).view(-1, 3, (pc.max_sh_degree+1)**2)
+            # 计算方向向量
             dir_pp = (pc.get_xyz - viewpoint_camera.camera_center.repeat(pc.get_features.shape[0], 1))
             dir_pp_normalized = dir_pp/dir_pp.norm(dim=1, keepdim=True)
             sh2rgb = eval_sh(pc.active_sh_degree, shs_view, dir_pp_normalized)
@@ -82,6 +85,8 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         colors_precomp = override_color
 
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
+    # GaussianModel的实例，作为函数调用__call__()，进一步调用forwad()函数
+    # 将gauss光栅化并返回2D半径
     rendered_image, radii = rasterizer(
         means3D = means3D,
         means2D = means2D,

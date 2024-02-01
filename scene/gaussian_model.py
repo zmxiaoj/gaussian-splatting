@@ -22,7 +22,7 @@ from utils.graphics_utils import BasicPointCloud
 from utils.general_utils import strip_symmetric, build_scaling_rotation
 
 class GaussianModel:
-
+    # 设置属性的激活函数
     def setup_functions(self):
         def build_covariance_from_scaling_rotation(scaling, scaling_modifier, rotation):
             L = build_scaling_rotation(scaling_modifier * scaling, rotation)
