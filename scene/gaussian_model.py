@@ -40,12 +40,14 @@ class GaussianModel:
 
         self.rotation_activation = torch.nn.functional.normalize
 
-
+    # 构造函数
     def __init__(self, sh_degree : int):
         self.active_sh_degree = 0
         self.max_sh_degree = sh_degree  
         self._xyz = torch.empty(0)
+        # SH的常量
         self._features_dc = torch.empty(0)
+        # SH除常量外部分
         self._features_rest = torch.empty(0)
         self._scaling = torch.empty(0)
         self._rotation = torch.empty(0)
@@ -92,6 +94,7 @@ class GaussianModel:
         self.denom = denom
         self.optimizer.load_state_dict(opt_dict)
 
+    # 装饰词，将get_scaling作为class的属性
     @property
     def get_scaling(self):
         return self.scaling_activation(self._scaling)
@@ -146,6 +149,7 @@ class GaussianModel:
         self._opacity = nn.Parameter(opacities.requires_grad_(True))
         self.max_radii2D = torch.zeros((self.get_xyz.shape[0]), device="cuda")
 
+    # 设置训练相关参数
     def training_setup(self, training_args):
         self.percent_dense = training_args.percent_dense
         self.xyz_gradient_accum = torch.zeros((self.get_xyz.shape[0], 1), device="cuda")
@@ -159,13 +163,15 @@ class GaussianModel:
             {'params': [self._scaling], 'lr': training_args.scaling_lr, "name": "scaling"},
             {'params': [self._rotation], 'lr': training_args.rotation_lr, "name": "rotation"}
         ]
-
+        # 创建Adam优化器
         self.optimizer = torch.optim.Adam(l, lr=0.0, eps=1e-15)
+        # 创建xyz的学习率调度器
         self.xyz_scheduler_args = get_expon_lr_func(lr_init=training_args.position_lr_init*self.spatial_lr_scale,
                                                     lr_final=training_args.position_lr_final*self.spatial_lr_scale,
                                                     lr_delay_mult=training_args.position_lr_delay_mult,
                                                     max_steps=training_args.position_lr_max_steps)
 
+    # 更新位置xyz的学习率
     def update_learning_rate(self, iteration):
         ''' Learning rate scheduling per step '''
         for param_group in self.optimizer.param_groups:
