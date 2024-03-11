@@ -95,10 +95,13 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         image, viewspace_point_tensor, visibility_filter, radii = render_pkg["render"], render_pkg["viewspace_points"], render_pkg["visibility_filter"], render_pkg["radii"]
 
         # Loss
-        # 计算损失loss
+        
+        # 将gt图像复制到gpu上
         gt_image = viewpoint_cam.original_image.cuda()
+        # 在gpu上计算loss
         Ll1 = l1_loss(image, gt_image)
         loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim(image, gt_image))
+        # 反向传播计算梯度
         loss.backward()
 
         iter_end.record()
@@ -134,9 +137,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                     gaussians.reset_opacity()
 
             # Optimizer step
-            # 优化器更新
+            # 优化器更新(在gpu上进行)
             if iteration < opt.iterations:
+                # 根据梯度更新参数
                 gaussians.optimizer.step()
+                # 清空梯度
                 gaussians.optimizer.zero_grad(set_to_none = True)
 
             if (iteration in checkpoint_iterations):
