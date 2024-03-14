@@ -23,8 +23,13 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     """
  
     # Create zero tensor. We will use it to make pytorch return gradients of the 2D (screen-space) means
+    # 创建一个与pc.get_xyz相同大小的张量，用于存储屏幕空间的坐标
+    # 该tensor的requires_grad=True，表示需要计算梯度
+    # 该tensor的device="cuda"，表示在GPU上创建
+    # +0表示新创建的tensor不会与pc.get_xyz共享内存
     screenspace_points = torch.zeros_like(pc.get_xyz, dtype=pc.get_xyz.dtype, requires_grad=True, device="cuda") + 0
     try:
+        # 在backward时，保存梯度
         screenspace_points.retain_grad()
     except:
         pass
