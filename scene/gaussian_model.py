@@ -50,6 +50,7 @@ class GaussianModel:
         # SH除常量外部分
         self._features_rest = torch.empty(0)
         self._scaling = torch.empty(0)
+        # 初始化为空的tensor
         self._rotation = torch.empty(0)
         self._opacity = torch.empty(0)
         self.max_radii2D = torch.empty(0)

@@ -63,6 +63,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
 
     # If precomputed 3d covariance is provided, use it. If not, then it will be computed from
     # scaling / rotation by the rasterizer.
+    # 提供了3d协方差矩阵，使用它；否则，后续由光栅化器根据S，R计算
     scales = None
     rotations = None
     cov3D_precomp = None
@@ -91,7 +92,7 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
 
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
     # GaussianModel的实例，作为函数调用__call__()，进一步调用forwad()函数
-    # 将gauss光栅化并返回2D半径
+    # 将gauss光栅化并返回渲染图和2D半径
     rendered_image, radii = rasterizer(
         means3D = means3D,
         means2D = means2D,
