@@ -153,18 +153,25 @@ def read_points3D_binary(path_to_model_file):
             errors[p_id] = error
     return xyzs, rgbs, errors
 
+# 读取camera.txt文件
 def read_intrinsics_text(path):
     """
     Taken from https://github.com/colmap/colmap/blob/dev/scripts/python/read_write_model.py
     """
+    # 创建空字典
     cameras = {}
     with open(path, "r") as fid:
         while True:
+            # 按行读取
             line = fid.readline()
+            # 读取结束
             if not line:
                 break
+            # 去除行前后空白字符
             line = line.strip()
+            # 跳过空白行及注释行
             if len(line) > 0 and line[0] != "#":
+                # 切片
                 elems = line.split()
                 camera_id = int(elems[0])
                 model = elems[1]
@@ -240,26 +247,37 @@ def read_intrinsics_binary(path_to_model_file):
         assert len(cameras) == num_cameras
     return cameras
 
-
+# 读取images.txt文件
 def read_extrinsics_text(path):
     """
     Taken from https://github.com/colmap/colmap/blob/dev/scripts/python/read_write_model.py
     """
+    # 创建空字典
     images = {}
     with open(path, "r") as fid:
         while True:
             line = fid.readline()
             if not line:
                 break
+            # 去除前后空白字符
             line = line.strip()
+            # 跳过空白行及注释行
             if len(line) > 0 and line[0] != "#":
+                # 切片
                 elems = line.split()
+                # 取image_id
                 image_id = int(elems[0])
+                # 取四元数旋转 qw qx qy qz
                 qvec = np.array(tuple(map(float, elems[1:5])))
+                # 去平移向量 tx ty tz
                 tvec = np.array(tuple(map(float, elems[5:8])))
+                # 取camera_id
                 camera_id = int(elems[8])
+                # 取image_name
                 image_name = elems[9]
+                # 取下一行并切片
                 elems = fid.readline().split()
+                # 取x y point3D_id ，check后续是否使用
                 xys = np.column_stack([tuple(map(float, elems[0::3])),
                                        tuple(map(float, elems[1::3]))])
                 point3D_ids = np.array(tuple(map(int, elems[2::3])))

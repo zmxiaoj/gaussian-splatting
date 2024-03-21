@@ -23,6 +23,7 @@ from plyfile import PlyData, PlyElement
 from utils.sh_utils import SH2RGB
 from scene.gaussian_model import BasicPointCloud
 
+# 使用到的相机有关参数
 class CameraInfo(NamedTuple):
     uid: int
     R: np.array
@@ -65,14 +66,18 @@ def getNerfppNorm(cam_info):
 
     return {"translate": translate, "radius": radius}
 
+# 读取相机的内参、外参、图像信息
 def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
+    # 初始化空列表
     cam_infos = []
+    # 遍历所有相机
     for idx, key in enumerate(cam_extrinsics):
+        # 在终端可视化读取进度
         sys.stdout.write('\r')
         # the exact output you're looking for:
         sys.stdout.write("Reading camera {}/{}".format(idx+1, len(cam_extrinsics)))
         sys.stdout.flush()
-
+        # 取出相关参数
         extr = cam_extrinsics[key]
         intr = cam_intrinsics[extr.camera_id]
         height = intr.height
@@ -98,6 +103,7 @@ def readColmapCameras(cam_extrinsics, cam_intrinsics, images_folder):
         image_name = os.path.basename(image_path).split(".")[0]
         image = Image.open(image_path)
 
+        # 保存相机参数到列表
         cam_info = CameraInfo(uid=uid, R=R, T=T, FovY=FovY, FovX=FovX, image=image,
                               image_path=image_path, image_name=image_name, width=width, height=height)
         cam_infos.append(cam_info)
@@ -145,6 +151,7 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
     cam_infos_unsorted = readColmapCameras(cam_extrinsics=cam_extrinsics, cam_intrinsics=cam_intrinsics, images_folder=os.path.join(path, reading_dir))
     cam_infos = sorted(cam_infos_unsorted.copy(), key = lambda x : x.image_name)
 
+    # 根据eval参数，决定是否分割训练集和测试集
     if eval:
         train_cam_infos = [c for idx, c in enumerate(cam_infos) if idx % llffhold != 0]
         test_cam_infos = [c for idx, c in enumerate(cam_infos) if idx % llffhold == 0]
