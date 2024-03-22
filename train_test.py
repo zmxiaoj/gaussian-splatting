@@ -37,6 +37,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     scene = Scene(dataset, gaussians)
     # 初始化训练参数
     gaussians.training_setup(opt)
+
+    gaussians._rotation.requires_grad = False
+    gaussians._scaling.requires_grad = False
+    gaussians._opacity.requires_grad = True
+    gaussians._features_dc.requires_grad = False
+    gaussians._features_rest.requires_grad = False
+    gaussians._xyz.requires_grad = False
+
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
         gaussians.restore(model_params, opt)

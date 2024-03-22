@@ -57,6 +57,7 @@ class GaussianModel:
         self.xyz_gradient_accum = torch.empty(0)
         self.denom = torch.empty(0)
         self.optimizer = None
+        # 一个点占空间的最大比例，超过后将被密度控制
         self.percent_dense = 0
         self.spatial_lr_scale = 0
         self.setup_functions()
