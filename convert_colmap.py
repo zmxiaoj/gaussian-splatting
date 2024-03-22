@@ -1,4 +1,5 @@
 import json
+import argparse
 import sys
 import os
 import cv2
@@ -20,7 +21,12 @@ def fetchPly(path):
     plydata = PlyData.read(path)
     vertices = plydata['vertex']
     positions = np.vstack([vertices['x'], vertices['y'], vertices['z']]).T
-    colors = np.vstack([vertices['red'], vertices['green'], vertices['blue']]).T / 255.0
+    # 检查是否存在 'red', 'green', 'blue' 字段
+    if {'red', 'green', 'blue'}.issubset(vertices.data.dtype.names):
+        colors = np.vstack([vertices['red'], vertices['green'], vertices['blue']]).T
+    else:
+        # 如果不存在，随机初始化颜色，rgb均是[0,255]之间随机整数
+        colors = (np.random.rand(positions.shape[0], 3) * 255).astype(np.uint8)
     # 检查是否存在 'nx', 'ny', 'nz' 字段
     if {'nx', 'ny', 'nz'}.issubset(vertices.data.dtype.names):
         normals = np.vstack([vertices['nx'], vertices['ny'], vertices['nz']]).T
@@ -29,6 +35,7 @@ def fetchPly(path):
         normals = np.zeros_like(positions)    
     return BasicPointCloud(points=positions, colors=colors, normals=normals)
 
+# 3dgs
 def storePly(path, xyz, rgb):
     # Define the dtype for the structured array
     dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4'),
@@ -48,41 +55,96 @@ def storePly(path, xyz, rgb):
 
 if __name__ == "__main__":
 
-    if (len(sys.argv) > 1):
-        path_database = sys.argv[1]
+    parser = argparse.ArgumentParser(description="This is a script to convert data into colmap format.")
+    parser.add_argument("path2database", help="Path to the database.")
+    parser.add_argument("--camera", default="front_left", help="First camera to process.")
+    parser.add_argument("--number", default=100, help="Total number of images to process.")
+    parser.add_argument("--pointcloud", default="sfm", help="Pointcloud to process.")
+    parser.add_argument("--plottraj", default=False, help="Plot trajectory of camera")
+    args = parser.parse_args()
 
-    # Specify the paths to the JSON and COLMAP files
+    path_database = args.path2database
+    # print('type: ', type(path_database), ' path_database: ', path_database)
+    # 检验args.camera是否属于{'front_left', 'front_right', 'rear_left', 'rear_right'}
+    if args.camera not in ['front_left', 'front_right', 'rear_left', 'rear_right']:
+        print('camera:' + args.camera + ' does not match')
+        sys.exit(0)
+    cameraProcess = args.camera
+    # print('type: ', type(cameraProcess), ' cameraProcess: ', cameraProcess)
+    imageNumber = int(args.number)
+    # print('type: ', type(imageNumber), ' imageNumber: ', imageNumber)
+    pointcloutType = args.pointcloud
+    # print('type: ', type(pointcloutType), ' pointcloutType: ', pointcloutType)
+    plotTraj = args.plottraj
+    print('type: ', type(plotTraj), 'plotTraj', plotTraj)
+
+    # 检查path_database是否以sfm结尾
+    if path_database.endswith('sfm'):
+        print('path_database:' + path_database)
+    else:
+        print('path_database:' + path_database + ' does not match')
+        sys.exit(0)
+
     path_json_file = path_database + '/licam_result.json'
     path_sfm_pointcloud = path_database + '/cloud_optim.ply'
     path_lidar_pointcloud = path_database + '/lidarCloud.ply'
     path_image_folder = path_database + '/image'
+    # 检查path_json_file是否存在
+    if os.path.exists(path_json_file):
+        print('path_json_file:' + path_json_file)
+    else:
+        print('path_json_file:' + path_json_file + ' does not exist')
+        sys.exit(0)
+    if os.path.exists(path_sfm_pointcloud):
+        print('path_sfm_pointcloud:' + path_sfm_pointcloud)
+    else:
+        print('path_sfm_pointcloud:' + path_sfm_pointcloud + ' does not exist')
+        sys.exit(0)
+    if os.path.exists(path_lidar_pointcloud):
+        print('path_lidar_pointcloud:' + path_lidar_pointcloud)
+    else:
+        print('path_lidar_pointcloud:' + path_lidar_pointcloud + ' does not exist')
+        sys.exit(0)
+    if os.path.exists(path_image_folder):
+        print('path_image_folder:' + path_image_folder)
+    else:
+        print('path_image_folder:' + path_image_folder + ' does not exist')
+        sys.exit(0)
 
-    print(path_image_folder)
-    # path_colmap_file = path_database + '/3dgs_front_right'
-    path_colmap_file = path_database + '/3dgs_front_right_500'
-
+    # 创建保存结果的位置，默认是/3dgs
+    savepath = '/3dgs_' + cameraProcess + '_' + str(imageNumber) + '_' + pointcloutType
+    path_colmap_file = path_database + savepath
     if not os.path.exists(path_colmap_file):
         os.makedirs(path_colmap_file)
+        print('create folder:' + path_colmap_file)
+    else:
+        print('folder already exists:' + path_colmap_file)
+        sys.exit(0)
    
     # 创建sparse/0/ 文件夹
     path_colmap_file_info = path_colmap_file + '/sparse/0'
     if not os.path.exists(path_colmap_file_info):
         os.makedirs(path_colmap_file_info)
-    print(path_colmap_file_info)
+        print('create folder:' + path_colmap_file_info)
+    else:
+        print('folder already exists:' + path_colmap_file_info)
     # 创建images文件夹
     path_colmap_file_image = path_colmap_file + '/images'
     if not os.path.exists(path_colmap_file_image):
         os.makedirs(path_colmap_file_image)
-    print(path_colmap_file_image)
+        print('create folder:' + path_colmap_file_image)
+    else:
+        print('folder already exists:' + path_colmap_file_image)
 
-    # 读取JSON文件
+    # 读取json文件
     with open(path_json_file, 'r') as f:
         data = json.load(f)
-    # 输出JSON文件中的数据dist的key
+    # 取出json中的cameras, images, trajectory_opt
     cameras_json = data['cameras']
     images_json = data['images']
     traj_opt_json = data['trajectory_opt']
 
+    # 初始化相机参数字典
     camera_params = {}
     # 在循环中增加一个枚举变量idx，idx从1开始
     for idx, camera in enumerate(cameras_json, 1):
@@ -111,7 +173,10 @@ if __name__ == "__main__":
     # # 遍历camera_params
     # for key, value in camera_params.items():
     #     print(key, value)
+    # 输出camera_params的大小
+    # print(len(camera_params))
 
+    # 初始化车体位姿字典
     traj_opt = {}
     for traj in traj_opt_json:
         # 将时间戳作为key，将位姿作为value
@@ -127,6 +192,7 @@ if __name__ == "__main__":
     # # 输出traj_opt的大小 *4为图像的数量
     # print(len(traj_opt))
 
+    # 初始化图像信息字典
     images_info = {}
     for image in images_json:
         # 将相机+时间戳作为key，将图像路径作为value
@@ -140,11 +206,9 @@ if __name__ == "__main__":
     images_info = dict(sorted(images_info.items()))
     # # 遍历images_info
     # for key, value in images_info.items():
-    #     idx += 1
-    #     if idx%25 == 0:
     #         print(key)
     # 输出images_info的大小 全部图像数目
-    print(len(images_info))
+    # print(len(images_info))
     # sys.exit(0)
 
     # 创建cameras.txt文件
@@ -154,7 +218,7 @@ if __name__ == "__main__":
         for key, value in camera_params.items():
             f.write('%d %s %d %d %s\n' % (value['camera_id'], value['model'], value['width'], value['height'], ' '.join(map(str, value['params']))))
 
-    # check 位姿信息
+    # 检验位姿结果
     # 创建一个新的3D图形
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -164,7 +228,7 @@ if __name__ == "__main__":
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
 
-    # 遍历images信息，穿件images.txt文件
+    # 遍历images信息，创建images.txt文件
     with open(path_colmap_file_info + '/images.txt', 'w') as f:
         f.write('# Image list with two lines of data per image:\n')
         f.write('#   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME\n')
@@ -173,11 +237,11 @@ if __name__ == "__main__":
         # 增加枚举变量idx，idx从1开始
         idx = 0
         for key, value in images_info.items():
-            # 只选择front_right相机的前300张图
-            if value['camera_name'] != 'front_right_camera':
+            # 选择cameraProcess相机的前imageNumber张图
+            if value['camera_name'] != (cameraProcess + '_camera'):
                 continue
             idx += 1
-            if idx == 500:
+            if idx >= imageNumber + 1:
                 break
 
             # 根据名字读取图像
@@ -211,12 +275,13 @@ if __name__ == "__main__":
             # 计算相机曝光延时和rolling shutter每行相机曝光延时
             td = camera_params[camera_name]['td']
             rs_per_row = camera_params[camera_name]['rs_per_row']
+            # print('type: ', type(rs_per_row), ' rs_per_row: ', rs_per_row)
             # 计算1/2图像处的时间
             deltat_camera = td + rs_per_row * camera_height * 0.5
-            # print(deltat_camera)
+            # print('type: ', type(deltat_camera), ' deltat_camera: ', deltat_camera)
             # 计算相机真实时间相对车体时间的时间差
             groupTimeDiff = (real_timestamp - timestamp) * 1e-6
-            # print(groupTimeDiff)
+            # print('type: ', type(groupTimeDiff), ' groupdiff: ', groupTimeDiff)
             # 整体时间延时
             deltat = deltat_camera + groupTimeDiff
             # 更新车体位姿
@@ -235,18 +300,11 @@ if __name__ == "__main__":
             pose_wc_q_xyzw = R.from_matrix(pose_wc_R).as_quat()
             pose_wc_q_wxyz = [pose_wc_q_xyzw[3], pose_wc_q_xyzw[0], pose_wc_q_xyzw[1], pose_wc_q_xyzw[2]]
             
-            pltR = R.from_quat(pose_wc_q_xyzw).as_matrix()
-
-            pltt = pose_wc_t.flatten()
             # 绘制pose_wc_t的点
-            ax.scatter(pltt[0], pltt[1], pltt[2], c='r', marker='o')
-            # 绘制pose_wc_t的线
-            # ax.plot([0, pltt[0]], [0, pltt[1]], [0, pltt[2]], c='b')
-
-
-            # ax.quiver(pltt[0], pltt[1], pltt[2], pltR[0, 0], pltR[1, 0], pltR[2, 0], color='r', length=1)
-            # ax.quiver(pltt[0], pltt[1], pltt[2], pltR[0, 1], pltR[1, 1], pltR[2, 1], color='g', length=1)
-            # ax.quiver(pltt[0], pltt[1], pltt[2], pltR[0, 2], pltR[1, 2], pltR[2, 2], color='b', length=1)
+            camera_position = pose_wc_t
+            ax.scatter(*camera_position, c='r', marker='o')
+            camera_direction = pose_wc_R[:3, :3] @ np.array([0, 0, 1])
+            ax.quiver(*camera_position, *camera_direction, color='b', length=0.05)
 
             # 写入images.txt文件
             f.write('%d %f %f %f %f %f %f %f %d %s\n' % (idx, pose_wc_q_wxyz[0], pose_wc_q_wxyz[1], pose_wc_q_wxyz[2], pose_wc_q_wxyz[3], pose_wc_t[0], pose_wc_t[1], pose_wc_t[2], camera_id, key + '.jpg'))
@@ -254,33 +312,33 @@ if __name__ == "__main__":
             f.write('1 1 -1\n')
             
         # 输出处理照片数量
-        print('Processed images: ' + str(idx))
-        plt.show()
+        print('Processed images: ', max(0, idx - 1))
+        if plotTraj:
+            plt.show()
         
     # 将path_sfm_pointcloud拷贝重命名为points3D.ply
     # 读入path_sfm_pointcloud点云文件
-    pcd = fetchPly(path_sfm_pointcloud)
-    # print(pcd)
+    # pcd = fetchPly(path_sfm_pointcloud)
+    # 读入path_lidar_pointcloud点云文件
+    if pointcloutType == 'sfm':
+        pcd = fetchPly(path_sfm_pointcloud)
+        print('Input sfm pointcloud: ' + path_sfm_pointcloud)
+    elif pointcloutType == 'lidar':
+        pcd = fetchPly(path_lidar_pointcloud)
+        print('Input lidar pointcloud: ' + path_lidar_pointcloud)
+    else:
+        print('pointcloutType:' + pointcloutType + ' does not match')
+        sys.exit(0)
+    
     # 如果颜色值为[0,1]，则将颜色值转换为[0,255]
     if np.max(pcd.colors) <= 1:
         colors = (pcd.colors * 255).astype(np.uint8)
     else:
         colors = pcd.colors
+
     # 将pcd点云文件存储为points3D.ply文件
     storePly(path_colmap_file_info + '/points3D.ply', pcd.points, colors)
-    
-    pcd2 = fetchPly(path_colmap_file_info + '/points3D.ply')
-    # # 验证pcd和pcd2是否一致
-    # print(pcd.points[321] == pcd2.points[321])
-    # # 颜色变成了[0,0,0]
-    # print(pcd.colors[321] == pcd2.colors[321])
-    # print(pcd.normals[321] == pcd2.normals[321])
+    # 输出点云文件保存信息
+    print('Point cloud saved: ' + path_colmap_file_info + '/points3D.ply')
 
-    # with open(path_sfm_pointcloud, 'r') as f:
-    #     lines = f.readlines()
-    #     # print(lines)
-    # # 创建points3D.ply文件
-    # with open(path_colmap_file_info + '/points3D.ply', 'w') as f:
-    #     for line in lines[:]:
-    #         f.write(line)
 

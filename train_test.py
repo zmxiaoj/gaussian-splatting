@@ -41,7 +41,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     gaussians._rotation.requires_grad = False
     gaussians._scaling.requires_grad = False
     gaussians._opacity.requires_grad = True
-    gaussians._features_dc.requires_grad = False
+    gaussians._features_dc.requires_grad = True
     gaussians._features_rest.requires_grad = False
     gaussians._xyz.requires_grad = False
 
@@ -59,6 +59,8 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     ema_loss_for_log = 0.0
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
     first_iter += 1
+    # 输出gauss的_scaling
+    print("scaling", gaussians._scaling.mean())
     # 迭代循环
     for iteration in range(first_iter, opt.iterations + 1):        
         if network_gui.conn == None:
@@ -129,6 +131,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             training_report(tb_writer, iteration, Ll1, loss, l1_loss, iter_start.elapsed_time(iter_end), testing_iterations, scene, render, (pipe, background))
             if (iteration in saving_iterations):
                 print("\n[ITER {}] Saving Gaussians".format(iteration))
+                # 保存训练结果
                 scene.save(iteration)
 
             # Densification
@@ -150,6 +153,18 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             if iteration < opt.iterations:
                 # 根据梯度更新参数
                 gaussians.optimizer.step()
+                if iteration % 100 == 0:
+                    # # 检查gaussians的_rotation梯度更新情况
+                    # if gaussians._rotation.grad is not None:
+                    #     print("rotation gradiant", gaussians._rotation.grad)
+                    # else:
+                    #     print("rotation dont have gradient")
+                    if gaussians._opacity.grad is not None:
+                        print("opacity gradiant", gaussians._opacity.grad.sum())
+                    else:
+                        print("opacity dont have gradient")
+                    # 输出gauss的_scaling
+                    print("scaling", gaussians._scaling.mean())
                 # 清空梯度
                 gaussians.optimizer.zero_grad(set_to_none = True)
 
