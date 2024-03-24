@@ -16,6 +16,32 @@ class BasicPointCloud(NamedTuple):
     colors : np.array
     normals : np.array
 
+# from scene/colmap_loader.py
+def qvec2rotmat(qvec):
+    return np.array([
+        [1 - 2 * qvec[2]**2 - 2 * qvec[3]**2,
+         2 * qvec[1] * qvec[2] - 2 * qvec[0] * qvec[3],
+         2 * qvec[3] * qvec[1] + 2 * qvec[0] * qvec[2]],
+        [2 * qvec[1] * qvec[2] + 2 * qvec[0] * qvec[3],
+         1 - 2 * qvec[1]**2 - 2 * qvec[3]**2,
+         2 * qvec[2] * qvec[3] - 2 * qvec[0] * qvec[1]],
+        [2 * qvec[3] * qvec[1] - 2 * qvec[0] * qvec[2],
+         2 * qvec[2] * qvec[3] + 2 * qvec[0] * qvec[1],
+         1 - 2 * qvec[1]**2 - 2 * qvec[2]**2]])
+
+def rotmat2qvec(R):
+    Rxx, Ryx, Rzx, Rxy, Ryy, Rzy, Rxz, Ryz, Rzz = R.flat
+    K = np.array([
+        [Rxx - Ryy - Rzz, 0, 0, 0],
+        [Ryx + Rxy, Ryy - Rxx - Rzz, 0, 0],
+        [Rzx + Rxz, Rzy + Ryz, Rzz - Rxx - Ryy, 0],
+        [Ryz - Rzy, Rzx - Rxz, Rxy - Ryx, Rxx + Ryy + Rzz]]) / 3.0
+    eigvals, eigvecs = np.linalg.eigh(K)
+    qvec = eigvecs[[3, 0, 1, 2], np.argmax(eigvals)]
+    if qvec[0] < 0:
+        qvec *= -1
+    return qvec
+
 # 对3dgs中的fetchPly函数进行修改
 def fetchPly(path):
     plydata = PlyData.read(path)
@@ -57,7 +83,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="This is a script to convert data into colmap format.")
     parser.add_argument("path2database", help="Path to the database.")
-    parser.add_argument("--camera", default="front_left", help="First camera to process.")
+    parser.add_argument("--camera", default="all", help="First camera to process.")
     parser.add_argument("--number", default=100, help="Total number of images to process.")
     parser.add_argument("--pointcloud", default="sfm", help="Pointcloud to process.")
     parser.add_argument("--plottraj", default=False, help="Plot trajectory of camera")
@@ -66,7 +92,7 @@ if __name__ == "__main__":
     path_database = args.path2database
     # print('type: ', type(path_database), ' path_database: ', path_database)
     # 检验args.camera是否属于{'front_left', 'front_right', 'rear_left', 'rear_right'}
-    if args.camera not in ['front_left', 'front_right', 'rear_left', 'rear_right']:
+    if args.camera not in ['all', 'front_left', 'front_right', 'rear_left', 'rear_right']:
         print('camera:' + args.camera + ' does not match')
         sys.exit(0)
     cameraProcess = args.camera
@@ -76,7 +102,7 @@ if __name__ == "__main__":
     pointcloutType = args.pointcloud
     # print('type: ', type(pointcloutType), ' pointcloutType: ', pointcloutType)
     plotTraj = args.plottraj
-    print('type: ', type(plotTraj), 'plotTraj', plotTraj)
+    # print('type: ', type(plotTraj), 'plotTraj', plotTraj)
 
     # 检查path_database是否以sfm结尾
     if path_database.endswith('sfm'):
@@ -161,8 +187,10 @@ if __name__ == "__main__":
             'height': camera['height'],
             # params中的参数fx, fy, cx, cy 按照固定顺序保存
             'params': [intrinsic_opt['fx'], intrinsic_opt['fy'], intrinsic_opt['cx'], intrinsic_opt['cy']],
+            # q_xyzw
             'q_bc_opt': [Tbc_opt['rotation']['x'], Tbc_opt['rotation']['y'], Tbc_opt['rotation']['z'], Tbc_opt['rotation']['w']],
             't_bc_opt': [Tbc_opt['translation']['x'], Tbc_opt['translation']['y'], Tbc_opt['translation']['z']],
+            # q_xyzw
             'q_bc_raw': [Tbc_raw['rotation']['x'], Tbc_raw['rotation']['y'], Tbc_raw['rotation']['z'], Tbc_raw['rotation']['w']],
             't_bc_raw': [Tbc_raw['translation']['x'], Tbc_raw['translation']['y'], Tbc_raw['translation']['z']],
             # 相机曝光时间
@@ -181,6 +209,7 @@ if __name__ == "__main__":
     for traj in traj_opt_json:
         # 将时间戳作为key，将位姿作为value
         traj_opt[traj['timestamp']] = {
+            # q_xyzw
             'rotation': [traj['rotation']['x'], traj['rotation']['y'], traj['rotation']['z'], traj['rotation']['w']],
             'translation': [traj['translation']['x'], traj['translation']['y'], traj['translation']['z']],
             'vb': [traj['vb']['x'], traj['vb']['y'], traj['vb']['z']],
@@ -238,8 +267,9 @@ if __name__ == "__main__":
         idx = 0
         for key, value in images_info.items():
             # 选择cameraProcess相机的前imageNumber张图
-            if value['camera_name'] != (cameraProcess + '_camera'):
-                continue
+            if cameraProcess != 'all':
+                if value['camera_name'] != (cameraProcess + '_camera'):
+                    continue
             idx += 1
             if idx >= imageNumber + 1:
                 break
@@ -256,13 +286,19 @@ if __name__ == "__main__":
             timestamp = value['timestamp']
             # 获取车体系位姿
             pose_wb_q = traj_opt[timestamp]['rotation']
+            # q_xyzw
             pose_wb_R = R.from_quat([pose_wb_q[0], pose_wb_q[1], pose_wb_q[2], pose_wb_q[3]]).as_matrix()
+            pose_wb_R_array = np.array(pose_wb_R)
+            print("type: ", type(pose_wb_R_array), "pose_wb_R_array: ", pose_wb_R_array)
             pose_wb_t = traj_opt[timestamp]['translation']
             pose_wb_t_array = np.array([pose_wb_t[0], pose_wb_t[1], pose_wb_t[2]])
+            print("type: ", type(pose_wb_t_array), "pose_wb_t_array: ", pose_wb_t_array)
             # 取出车体系线速度
             vb = np.array(traj_opt[timestamp]['vb'])
+            print("type: ", type(vb), "vb: ", vb)
             # 取出车体系角速度
             wb = np.array(traj_opt[timestamp]['wb'])
+            print("type: ", type(wb), "wb: ", wb)
 
             # 获取相机的名字
             camera_name = value['camera_name']
@@ -270,23 +306,35 @@ if __name__ == "__main__":
             real_timestamp = value['real_timestamp']
             # 获取相机的id
             camera_id = camera_params[camera_name]['camera_id']
+            # 获取相机的高度
             camera_height = camera_params[camera_name]['height']
+            # 获取相机的宽度
             camera_width = camera_params[camera_name]['width']
             # 计算相机曝光延时和rolling shutter每行相机曝光延时
             td = camera_params[camera_name]['td']
             rs_per_row = camera_params[camera_name]['rs_per_row']
             # print('type: ', type(rs_per_row), ' rs_per_row: ', rs_per_row)
             # 计算1/2图像处的时间
+            # 0.5 * 1080 * 1.90476e-05 = 0.0102852704(s)
             deltat_camera = td + rs_per_row * camera_height * 0.5
-            # print('type: ', type(deltat_camera), ' deltat_camera: ', deltat_camera)
+            print('type: ', type(deltat_camera), ' deltat_camera: ', deltat_camera)
             # 计算相机真实时间相对车体时间的时间差
+            # front_left:0.033(s) front_right:-0.033(s) rear_left:0.000001(s) rear_right:0.00025(s)
             groupTimeDiff = (real_timestamp - timestamp) * 1e-6
-            # print('type: ', type(groupTimeDiff), ' groupdiff: ', groupTimeDiff)
+            print('type: ', type(groupTimeDiff), ' groupTimeDiff: ', groupTimeDiff)
             # 整体时间延时
             deltat = deltat_camera + groupTimeDiff
+            print('type: ', type(deltat), ' deltat: ', deltat)
             # 更新车体位姿
-            pose_wb_t_array_opt = pose_wb_t_array + np.dot(pose_wb_R, vb) * deltat
-            pose_wb_R_opt = pose_wb_R @ R.from_rotvec(wb * deltat).as_matrix()
+            pose_wb_t_array_opt = pose_wb_t_array + np.dot(pose_wb_R_array, vb * deltat) 
+            print("type: ", type(pose_wb_t_array_opt), "pose_wb_t_array_opt: ", pose_wb_t_array_opt)
+            pose_wb_R_opt = pose_wb_R_array @ np.array(R.from_rotvec(wb * deltat).as_matrix())
+            print("type: ", type(pose_wb_R_opt), "pose_wb_R_opt: ", pose_wb_R_opt)
+            
+            # # 取消位姿优化
+            # pose_wb_R_opt = pose_wb_R_array
+            # pose_wb_t_array_opt = pose_wb_t_array
+
             # 获取车体系到相机的外参
             pose_bc_q = camera_params[camera_name]['q_bc_opt']       
             pose_bc_R = R.from_quat([pose_bc_q[0], pose_bc_q[1], pose_bc_q[2], pose_bc_q[3]]).as_matrix()
@@ -295,21 +343,35 @@ if __name__ == "__main__":
             pose_bc_t_array = np.array([pose_bc_t[0], pose_bc_t[1], pose_bc_t[2]])
             # 计算世界系到相机的变换
             pose_wc_R = pose_wb_R_opt @ pose_bc_R_array
+            # 输出类型和值
+            print("type: ", type(pose_wc_R), " pose_wc_R: ", pose_wc_R)
             pose_wc_t = np.dot(pose_wb_R_opt, pose_bc_t_array) + pose_wb_t_array_opt
-        
-            pose_wc_q_xyzw = R.from_matrix(pose_wc_R).as_quat()
-            pose_wc_q_wxyz = [pose_wc_q_xyzw[3], pose_wc_q_xyzw[0], pose_wc_q_xyzw[1], pose_wc_q_xyzw[2]]
+            # 输出类型和值
+            print("type: ", type(pose_wc_t), " pose_wc_t: ", pose_wc_t)
+            # 逆变换
+            pose_cw_R = pose_wc_R.transpose()
+            print("type: ", type(pose_cw_R), " pose_cw_R: ", pose_cw_R)
+            pose_cw_t = -np.dot(pose_cw_R, pose_wc_t)
+            print("type: ", type(pose_cw_t), " pose_cw_t: ", pose_cw_t)
             
+            pose_cw_q_xyzw = R.from_matrix(pose_cw_R).as_quat()
+            if (pose_cw_q_xyzw[3] < 0):
+                pose_cw_q_xyzw = -pose_cw_q_xyzw
+            print("type: ", type(pose_cw_q_xyzw), "pose_wc_q_xyzw: ", pose_cw_q_xyzw)
+            pose_cw_q_wxyz = np.array([pose_cw_q_xyzw[3], pose_cw_q_xyzw[0], pose_cw_q_xyzw[1], pose_cw_q_xyzw[2]])
+            print("type: ", type(pose_cw_q_wxyz), "pose_wc_q_wxyz: ", pose_cw_q_wxyz)
             # 绘制pose_wc_t的点
             camera_position = pose_wc_t
             ax.scatter(*camera_position, c='r', marker='o')
-            camera_direction = pose_wc_R[:3, :3] @ np.array([0, 0, 1])
-            ax.quiver(*camera_position, *camera_direction, color='b', length=0.05)
+            camera_direction = pose_wc_R[:3, :3] @ np.array([1, 1, 1])
+            ax.quiver(*camera_position, *camera_direction, color='b', length=0.025)
 
             # 写入images.txt文件
-            f.write('%d %f %f %f %f %f %f %f %d %s\n' % (idx, pose_wc_q_wxyz[0], pose_wc_q_wxyz[1], pose_wc_q_wxyz[2], pose_wc_q_wxyz[3], pose_wc_t[0], pose_wc_t[1], pose_wc_t[2], camera_id, key + '.jpg'))
+            f.write('%d %.12f %.12f %.12f %.12f %.12f %.12f %.12f %d %s\n' % (idx, pose_cw_q_wxyz[0], pose_cw_q_wxyz[1], pose_cw_q_wxyz[2], pose_cw_q_wxyz[3], pose_cw_t[0], pose_cw_t[1], pose_cw_t[2], camera_id, key + '.jpg'))
             # 在images.txt文件中写入第二行数据，内容为(1, 1, -1)
             f.write('1 1 -1\n')
+            # 将上面两行内容输出到命令行
+            print('%d %.12f %.12f %.12f %.12f %.12f %.12f %.12f %d %s' % (idx, pose_cw_q_wxyz[0], pose_cw_q_wxyz[1], pose_cw_q_wxyz[2], pose_cw_q_wxyz[3], pose_cw_t[0], pose_cw_t[1], pose_cw_t[2], camera_id, key + '.jpg'))
             
         # 输出处理照片数量
         print('Processed images: ', max(0, idx - 1))
@@ -338,7 +400,16 @@ if __name__ == "__main__":
 
     # 将pcd点云文件存储为points3D.ply文件
     storePly(path_colmap_file_info + '/points3D.ply', pcd.points, colors)
-    # 输出点云文件保存信息
+    # 输出points3D.txt点云文件保存信息
     print('Point cloud saved: ' + path_colmap_file_info + '/points3D.ply')
 
-
+    # 将ply点云文件转换为point3D.txt文件
+    with open(path_colmap_file_info + '/points3D.txt', 'w') as f:
+        f.write('# 3D point list with one line of data per point:\n')
+        f.write('#   POINT3D_ID, X, Y, Z, R, G, B, ERROR, TRACK[] as (IMAGE_ID, POINT2D_IDX)\n')
+        f.write('# Number of points: %d\n' % pcd.points.shape[0]) 
+        for i in range(pcd.points.shape[0]):
+            f.write('%d %.12f %.12f %.12f %d %d %d 0' % (i, pcd.points[i, 0], pcd.points[i, 1], pcd.points[i, 2], colors[i, 0], colors[i, 1], colors[i, 2]))
+            f.write('\n')
+    # 输出points3D.txt点云文件保存信息
+    print('Point cloud saved: ' + path_colmap_file_info + '/points3D.txt')
