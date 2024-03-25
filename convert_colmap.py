@@ -357,9 +357,9 @@ if __name__ == "__main__":
             pose_cw_q_xyzw = R.from_matrix(pose_cw_R).as_quat()
             if (pose_cw_q_xyzw[3] < 0):
                 pose_cw_q_xyzw = -pose_cw_q_xyzw
-            print("type: ", type(pose_cw_q_xyzw), "pose_wc_q_xyzw: ", pose_cw_q_xyzw)
+            print("type: ", type(pose_cw_q_xyzw), "pose_cw_q_xyzw: ", pose_cw_q_xyzw)
             pose_cw_q_wxyz = np.array([pose_cw_q_xyzw[3], pose_cw_q_xyzw[0], pose_cw_q_xyzw[1], pose_cw_q_xyzw[2]])
-            print("type: ", type(pose_cw_q_wxyz), "pose_wc_q_wxyz: ", pose_cw_q_wxyz)
+            print("type: ", type(pose_cw_q_wxyz), "pose_cw_q_wxyz: ", pose_cw_q_wxyz)
             # 绘制pose_wc_t的点
             camera_position = pose_wc_t
             ax.scatter(*camera_position, c='r', marker='o')

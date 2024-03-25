@@ -38,12 +38,12 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     # 初始化训练参数
     gaussians.training_setup(opt)
 
-    gaussians._rotation.requires_grad = False
-    gaussians._scaling.requires_grad = False
+    gaussians._rotation.requires_grad = True
+    gaussians._scaling.requires_grad = True
     gaussians._opacity.requires_grad = True
     gaussians._features_dc.requires_grad = True
-    gaussians._features_rest.requires_grad = False
-    gaussians._xyz.requires_grad = False
+    gaussians._features_rest.requires_grad = True
+    gaussians._xyz.requires_grad = True
 
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
@@ -148,23 +148,61 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 if iteration % opt.opacity_reset_interval == 0 or (dataset.white_background and iteration == opt.densify_from_iter):
                     gaussians.reset_opacity()
 
+            iterationCheck = 100
             # Optimizer step
             # 优化器更新(在gpu上进行)
             if iteration < opt.iterations:
                 # 根据梯度更新参数
                 gaussians.optimizer.step()
-                if iteration % 100 == 0:
-                    # # 检查gaussians的_rotation梯度更新情况
-                    # if gaussians._rotation.grad is not None:
-                    #     print("rotation gradiant", gaussians._rotation.grad)
-                    # else:
-                    #     print("rotation dont have gradient")
+                # 每迭代100次更新梯度和状态信息相关
+                if iteration % iterationCheck == 0:
+                    # 检验gaussians的_xyz梯度更新情况
+                    if gaussians._xyz.grad is not None:
+                        print("xyz gradiant", gaussians._xyz.grad)
+                    else:
+                        print("xyz dont have gradient")
+                    # # 输出gaussians的_xyz
+                    # print("xyz: ", gaussians._xyz)
+
+                    # 检查gaussians的_rotation梯度更新情况
+                    if gaussians._rotation.grad is not None:
+                        print("rotation gradiant", gaussians._rotation.grad)
+                    else:
+                        print("rotation dont have gradient")
+                    # # 输出gaussians的_rotation
+                    # print("rotation: ", gaussians._rotation)
+
+                    # 检查gaussians的_scaling梯度更新情况
+                    if gaussians._scaling.grad is not None:
+                        print("scaling gradiant", gaussians._scaling.grad)
+                    else:
+                        print("scaling dont have gradient")
+                    # # 输出gaussians的_scaling
+                    # print("scaling: ", gaussians._scaling)
+                    # 检查gaussians的_opacity梯度更新情况
                     if gaussians._opacity.grad is not None:
-                        print("opacity gradiant", gaussians._opacity.grad.sum())
+                        print("opacity gradiant", gaussians._opacity.grad)
                     else:
                         print("opacity dont have gradient")
-                    # 输出gauss的_scaling
-                    print("scaling", gaussians._scaling.mean())
+                    # # 输出gaussians的_opacity
+                    # print("opacity: ", gaussians._opacity)
+
+                    # 检查gaussians的_features_dc梯度更新情况
+                    if gaussians._features_dc.grad is not None:
+                        print("features_dc gradiant", gaussians._features_dc.grad)
+                    else:   
+                        print("features_dc dont have gradient")
+                    # # 输出gaussians的_features_dc
+                    # print("features_dc: ", gaussians._features_dc)
+
+                    # 检查gaussians的_features_rest梯度更新情况
+                    if gaussians._features_rest.grad is not None:
+                        print("features_rest gradiant", gaussians._features_rest.grad)
+                    else:
+                        print("features_rest dont have gradient")
+                    # # 输出gaussians的_features_rest
+                    # print("features_rest: ", gaussians._features_rest)     
+                
                 # 清空梯度
                 gaussians.optimizer.zero_grad(set_to_none = True)
 
