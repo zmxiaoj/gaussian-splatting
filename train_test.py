@@ -59,8 +59,20 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     ema_loss_for_log = 0.0
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
     first_iter += 1
-    # 输出gauss的_scaling
-    print("scaling", gaussians._scaling.mean())
+
+    # # 输出gaussians的_xyz
+    # print("xyz: ", gaussians._xyz)
+    # # 输出gaussians的_rotation
+    # print("rotation: ", gaussians._rotation)
+    # # 输出gaussians的_scaling
+    # print("scaling: ", gaussians._scaling)
+    # # 输出gaussians的_opacity
+    # print("opacity: ", gaussians._opacity)
+    # # 输出gaussians的_features_dc
+    # print("features_dc: ", gaussians._features_dc)
+    # # 输出gaussians的_features_rest
+    # print("features_rest: ", gaussians._features_rest) 
+
     # 迭代循环
     for iteration in range(first_iter, opt.iterations + 1):        
         if network_gui.conn == None:
@@ -148,7 +160,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 if iteration % opt.opacity_reset_interval == 0 or (dataset.white_background and iteration == opt.densify_from_iter):
                     gaussians.reset_opacity()
 
-            iterationCheck = 100
+            iterationCheck = 500
             # Optimizer step
             # 优化器更新(在gpu上进行)
             if iteration < opt.iterations:
@@ -179,6 +191,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                         print("scaling dont have gradient")
                     # # 输出gaussians的_scaling
                     # print("scaling: ", gaussians._scaling)
+                    
                     # 检查gaussians的_opacity梯度更新情况
                     if gaussians._opacity.grad is not None:
                         print("opacity gradiant", gaussians._opacity.grad)

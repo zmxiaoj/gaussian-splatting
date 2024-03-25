@@ -83,10 +83,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="This is a script to convert data into colmap format.")
     parser.add_argument("path2database", help="Path to the database.")
-    parser.add_argument("--camera", default="all", help="First camera to process.")
-    parser.add_argument("--number", default=100, help="Total number of images to process.")
-    parser.add_argument("--pointcloud", default="sfm", help="Pointcloud to process.")
-    parser.add_argument("--plottraj", default=False, help="Plot trajectory of camera")
+    parser.add_argument("--camera", type=str, default="all", help="First camera to process.")
+    parser.add_argument("--number", type=int, default=100, help="Total number of images to process.")
+    parser.add_argument("--pointcloud", type=str, default="sfm", help="Pointcloud to process.")
+    parser.add_argument("--plottraj", type=bool, default=False, help="Plot trajectory of camera")
     args = parser.parse_args()
 
     path_database = args.path2database
@@ -284,7 +284,7 @@ if __name__ == "__main__":
             
             # 获取标称时间戳作为key，获取车体位姿及速度
             timestamp = value['timestamp']
-            # 获取车体系位姿
+            # 获取车体系到世界系位姿
             pose_wb_q = traj_opt[timestamp]['rotation']
             # q_xyzw
             pose_wb_R = R.from_quat([pose_wb_q[0], pose_wb_q[1], pose_wb_q[2], pose_wb_q[3]]).as_matrix()
@@ -335,20 +335,20 @@ if __name__ == "__main__":
             # pose_wb_R_opt = pose_wb_R_array
             # pose_wb_t_array_opt = pose_wb_t_array
 
-            # 获取车体系到相机的外参
+            # 获取相机系到车体系的外参
             pose_bc_q = camera_params[camera_name]['q_bc_opt']       
             pose_bc_R = R.from_quat([pose_bc_q[0], pose_bc_q[1], pose_bc_q[2], pose_bc_q[3]]).as_matrix()
             pose_bc_R_array = np.array(pose_bc_R)
             pose_bc_t = camera_params[camera_name]['t_bc_opt']
             pose_bc_t_array = np.array([pose_bc_t[0], pose_bc_t[1], pose_bc_t[2]])
-            # 计算世界系到相机的变换
+            # 计算相机系到世界系的变换
             pose_wc_R = pose_wb_R_opt @ pose_bc_R_array
             # 输出类型和值
             print("type: ", type(pose_wc_R), " pose_wc_R: ", pose_wc_R)
             pose_wc_t = np.dot(pose_wb_R_opt, pose_bc_t_array) + pose_wb_t_array_opt
             # 输出类型和值
             print("type: ", type(pose_wc_t), " pose_wc_t: ", pose_wc_t)
-            # 逆变换
+            # 计算世界系到相机系的变换
             pose_cw_R = pose_wc_R.transpose()
             print("type: ", type(pose_cw_R), " pose_cw_R: ", pose_cw_R)
             pose_cw_t = -np.dot(pose_cw_R, pose_wc_t)
