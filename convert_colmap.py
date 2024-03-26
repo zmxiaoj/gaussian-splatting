@@ -83,9 +83,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="This is a script to convert data into colmap format.")
     parser.add_argument("path2database", help="Path to the database.")
-    parser.add_argument("--camera", type=str, default="all", help="First camera to process.")
-    parser.add_argument("--number", type=int, default=100, help="Total number of images to process.")
-    parser.add_argument("--pointcloud", type=str, default="sfm", help="Pointcloud to process.")
+    parser.add_argument("--camera", type=str, required=True, default="all", help="First camera to process.")
+    parser.add_argument("--number", type=int, required=True, default=100, help="Total number of images to process.")
+    parser.add_argument("--pointcloud", type=str, required=True, default="sfm", help="Pointcloud to process.")
     parser.add_argument("--plottraj", type=bool, default=False, help="Plot trajectory of camera")
     args = parser.parse_args()
 
@@ -317,6 +317,8 @@ if __name__ == "__main__":
             # 计算1/2图像处的时间
             # 0.5 * 1080 * 1.90476e-05 = 0.0102852704(s)
             deltat_camera = td + rs_per_row * camera_height * 0.5
+            # 计算3/4图像处的时间
+            # deltat_camera = td + rs_per_row * camera_height * 0.75
             print('type: ', type(deltat_camera), ' deltat_camera: ', deltat_camera)
             # 计算相机真实时间相对车体时间的时间差
             # front_left:0.033(s) front_right:-0.033(s) rear_left:0.000001(s) rear_right:0.00025(s)

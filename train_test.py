@@ -28,7 +28,7 @@ try:
 except ImportError:
     TENSORBOARD_FOUND = False
 
-def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from):
+def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from, exclude_vars, sh_degree_up):
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
     # 初始化gs
@@ -38,12 +38,14 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     # 初始化训练参数
     gaussians.training_setup(opt)
 
-    gaussians._rotation.requires_grad = True
-    gaussians._scaling.requires_grad = True
-    gaussians._opacity.requires_grad = True
-    gaussians._features_dc.requires_grad = True
-    gaussians._features_rest.requires_grad = True
-    gaussians._xyz.requires_grad = True
+    # 根据输入参数检查哪些参数需要梯度更新
+    all_vars = ['_rotation', '_scaling', '_opacity', '_features_dc', '_features_rest', '_xyz']
+    for var in exclude_vars:
+        if var in all_vars:
+            all_vars.remove(var)
+            getattr(gaussians, var).requires_grad = False
+    for var in all_vars:
+        getattr(gaussians, var).requires_grad = True
 
     if checkpoint:
         (model_params, first_iter) = torch.load(checkpoint)
@@ -60,19 +62,73 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
     first_iter += 1
 
-    # # 输出gaussians的_xyz
-    # print("xyz: ", gaussians._xyz)
-    # # 输出gaussians的_rotation
-    # print("rotation: ", gaussians._rotation)
-    # # 输出gaussians的_scaling
-    # print("scaling: ", gaussians._scaling)
-    # # 输出gaussians的_opacity
-    # print("opacity: ", gaussians._opacity)
-    # # 输出gaussians的_features_dc
-    # print("features_dc: ", gaussians._features_dc)
-    # # 输出gaussians的_features_rest
-    # print("features_rest: ", gaussians._features_rest) 
+    # 设置torch输出精度和最大变量显示数量
+    torch.set_printoptions(precision=8, sci_mode=False, threshold=1000)
 
+    print("Initial Gaussians: ")
+    # 输出gaussians的_xyz，最大值，最小值，均值
+    print("xyz: ", gaussians._xyz)
+    print("xyz max: ", torch.max(gaussians._xyz))
+    print("xyz min: ", torch.min(gaussians._xyz))
+    print("xyz mean: ", torch.mean(gaussians._xyz))
+    # 输出gaussians的_rotation，最大值，最小值，均值
+    print("rotation: ", gaussians._rotation)
+    print("rotation max: ", torch.max(gaussians._rotation))
+    print("rotation min: ", torch.min(gaussians._rotation))
+    print("rotation mean: ", torch.mean(gaussians._rotation))
+    # 输出gaussians的_scaling，最大值，最小值，均值
+    print("scaling: ", gaussians._scaling)
+    print("scaling max: ", torch.max(gaussians._scaling))
+    print("scaling min: ", torch.min(gaussians._scaling))
+    print("scaling mean: ", torch.mean(gaussians._scaling))
+    # 输出gaussians的_opacity，最大值，最小值，均值
+    print("opacity: ", gaussians._opacity)
+    print("opacity max: ", torch.max(gaussians._opacity))
+    print("opacity min: ", torch.min(gaussians._opacity))
+    print("opacity mean: ", torch.mean(gaussians._opacity))
+    # 输出gaussians的_features_dc，最大值，最小值，均值
+    print("features_dc: ", gaussians._features_dc)
+    print("features_dc max: ", torch.max(gaussians._features_dc))
+    print("features_dc min: ", torch.min(gaussians._features_dc))
+    print("features_dc mean: ", torch.mean(gaussians._features_dc))
+    # 输出gaussians的_features_rest，最大值，最小值，均值
+    print("features_rest: ", gaussians._features_rest) 
+    print("features_rest max: ", torch.max(gaussians._features_rest))
+    print("features_rest min: ", torch.min(gaussians._features_rest))
+    print("features_rest mean: ", torch.mean(gaussians._features_rest))
+
+    with open(scene.model_path + '/record.txt', 'w') as f:
+        f.write("Initial Gaussians: \n")
+        # 记录初始gaussians的xyz，最大值，最小值，均值
+        f.write("xyz: " + str(gaussians._xyz) + "\n")
+        f.write("xyz max: " + str(torch.max(gaussians._xyz)) + "\n")
+        f.write("xyz min: " + str(torch.min(gaussians._xyz)) + "\n")
+        f.write("xyz mean: " + str(torch.mean(gaussians._xyz)) + "\n")
+        # 记录初始gaussians的rotation，最大值，最小值，均值
+        f.write("rotation: " + str(gaussians._rotation) + "\n")
+        f.write("rotation max: " + str(torch.max(gaussians._rotation)) + "\n")
+        f.write("rotation min: " + str(torch.min(gaussians._rotation)) + "\n")
+        f.write("rotation mean: " + str(torch.mean(gaussians._rotation)) + "\n")
+        # 记录初始gaussians的scaling，最大值，最小值，均值
+        f.write("scaling: " + str(gaussians._scaling) + "\n")
+        f.write("scaling max: " + str(torch.max(gaussians._scaling)) + "\n")
+        f.write("scaling min: " + str(torch.min(gaussians._scaling)) + "\n")
+        f.write("scaling mean: " + str(torch.mean(gaussians._scaling)) + "\n")
+        # 记录初始gaussians的opacity，最大值，最小值，均值
+        f.write("opacity: " + str(gaussians._opacity) + "\n")
+        f.write("opacity max: " + str(torch.max(gaussians._opacity)) + "\n")
+        f.write("opacity min: " + str(torch.min(gaussians._opacity)) + "\n")
+        f.write("opacity mean: " + str(torch.mean(gaussians._opacity)) + "\n")
+        # 记录初始gaussians的features_dc，最大值，最小值，均值
+        f.write("features_dc: " + str(gaussians._features_dc) + "\n")
+        f.write("features_dc max: " + str(torch.max(gaussians._features_dc)) + "\n")
+        f.write("features_dc min: " + str(torch.min(gaussians._features_dc)) + "\n")
+        f.write("features_dc mean: " + str(torch.mean(gaussians._features_dc)) + "\n")
+        # 记录初始gaussians的features_rest，最大值，最小值，均值
+        f.write("features_rest: " + str(gaussians._features_rest) + "\n")
+        f.write("features_rest max: " + str(torch.max(gaussians._features_rest)) + "\n")
+        f.write("features_rest min: " + str(torch.min(gaussians._features_rest)) + "\n")
+        f.write("features_rest mean: " + str(torch.mean(gaussians._features_rest)) + "\n")
     # 迭代循环
     for iteration in range(first_iter, opt.iterations + 1):        
         if network_gui.conn == None:
@@ -95,11 +151,11 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         # 更新学习率
         gaussians.update_learning_rate(iteration)
 
-        # # Every 1000 its we increase the levels of SH up to a maximum degree
-        # # 暂时关闭sh_degree的提高
-        # # 提高active_sh_degree
-        # if iteration % 1000 == 0:
-        #     gaussians.oneupSHdegree()
+        # Every 1000 its we increase the levels of SH up to a maximum degree
+        # 提高active_sh_degree
+        if sh_degree_up is True:
+            if iteration % 1000 == 0:
+                gaussians.oneupSHdegree()
 
         # Pick a random Camera
         # 随机选择视点相机
@@ -160,7 +216,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 if iteration % opt.opacity_reset_interval == 0 or (dataset.white_background and iteration == opt.densify_from_iter):
                     gaussians.reset_opacity()
 
-            iterationCheck = 500
+            iterationCheck = 200
             # Optimizer step
             # 优化器更新(在gpu上进行)
             if iteration < opt.iterations:
@@ -215,7 +271,23 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                         print("features_rest dont have gradient")
                     # # 输出gaussians的_features_rest
                     # print("features_rest: ", gaussians._features_rest)     
-                
+
+                    # 记录训练信息
+                    with open(scene.model_path + '/record.txt', 'a') as f:
+                        f.write("Iteration: " + str(iteration) + "\n")
+                        f.write("xyz: " + str(gaussians._xyz) + "\n")
+                        f.write("rotation: " + str(gaussians._rotation) + "\n")
+                        f.write("scaling: " + str(gaussians._scaling) + "\n")
+                        f.write("opacity: " + str(gaussians._opacity) + "\n")
+                        f.write("features_dc: " + str(gaussians._features_dc) + "\n")
+                        f.write("features_rest: " + str(gaussians._features_rest) + "\n")
+                        f.write("xyz gradiant: " + str(gaussians._xyz.grad) + "\n")
+                        f.write("rotation gradiant: " + str(gaussians._rotation.grad) + "\n")
+                        f.write("scaling gradiant: " + str(gaussians._scaling.grad) + "\n")
+                        f.write("opacity gradiant: " + str(gaussians._opacity.grad) + "\n")
+                        f.write("features_dc gradiant: " + str(gaussians._features_dc.grad) + "\n")
+                        f.write("features_rest gradiant: " + str(gaussians._features_rest.grad) + "\n")
+
                 # 清空梯度
                 gaussians.optimizer.zero_grad(set_to_none = True)
 
@@ -297,6 +369,10 @@ if __name__ == "__main__":
     parser.add_argument("--quiet", action="store_true")
     parser.add_argument("--checkpoint_iterations", nargs="+", type=int, default=[])
     parser.add_argument("--start_checkpoint", type=str, default = None)
+    # 增加输入参数，设置不参与优化的变量
+    parser.add_argument("--exclude_vars", nargs="*", type=str, default=[])
+    # 增加输入参数，设置是否进行提高sh_degree
+    parser.add_argument("--sh_degree_up", type=bool, default=True)
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
     
@@ -308,7 +384,7 @@ if __name__ == "__main__":
     # Start GUI server, configure and run training
     network_gui.init(args.ip, args.port)
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
-    training(lp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from)
+    training(lp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args.exclude_vars, args.sh_degree_up)
 
     # All done
     print("\nTraining complete.")
