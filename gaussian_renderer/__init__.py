@@ -93,7 +93,8 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     # Rasterize visible Gaussians to image, obtain their radii (on screen). 
     # GaussianModel的实例，作为函数调用__call__()，进一步调用forwad()函数
     # 将gauss光栅化并返回渲染图和2D半径
-    rendered_image, radii = rasterizer(
+    # 增加渲染深度图的返回
+    rendered_image, radii, depth_image = rasterizer(
         means3D = means3D,
         means2D = means2D,
         shs = shs,
@@ -109,4 +110,6 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
     return {"render": rendered_image,
             "viewspace_points": screenspace_points,
             "visibility_filter" : radii > 0,
-            "radii": radii}
+            "radii": radii,
+            # 增加渲染深度图的返回
+            "depth_image": depth_image}
