@@ -22,6 +22,7 @@ from tqdm import tqdm
 from utils.image_utils import psnr
 from argparse import ArgumentParser, Namespace
 from arguments import ModelParams, PipelineParams, OptimizationParams
+import math
 try:
     from torch.utils.tensorboard import SummaryWriter
     TENSORBOARD_FOUND = True
@@ -247,7 +248,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                     else:
                         print("scaling dont have gradient")
                     # # 输出gaussians的_scaling
-                    # print("scaling: ", gaussians._scaling)
+                    print("scaling: ", gaussians._scaling)
+                    # # 输出gaussians的_scaling的最大值
+                    print("scaling max: ", torch.max(gaussians._scaling))
                     
                     # 检查gaussians的_opacity梯度更新情况
                     if gaussians._opacity.grad is not None:
@@ -292,6 +295,9 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 # 清空梯度
                 gaussians.optimizer.zero_grad(set_to_none = True)
 
+                # 对高斯点的scaling进行clamp 20cm 
+                gaussians._scaling.data = torch.clamp(gaussians._scaling.data, math.log(0.002), math.log(0.2))
+            
             if (iteration in checkpoint_iterations):
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
                 torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
