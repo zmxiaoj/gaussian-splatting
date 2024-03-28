@@ -22,22 +22,30 @@ from utils.graphics_utils import BasicPointCloud
 from utils.general_utils import strip_symmetric, build_scaling_rotation
 
 class GaussianModel:
-    # 设置属性的激活函数
+    # 设置属性的激活函数引用，对不同属性的激活函数引用实际函数
     def setup_functions(self):
         def build_covariance_from_scaling_rotation(scaling, scaling_modifier, rotation):
+            # 构造(Cov)^(1/2) = L = R * S
             L = build_scaling_rotation(scaling_modifier * scaling, rotation)
+            # Cov = L * L^T = R * S * S^T * R^T
+            # 对dim=1,2进行转置
             actual_covariance = L @ L.transpose(1, 2)
+            # 取出Cov的上三角部分，保留为6维向量
             symm = strip_symmetric(actual_covariance)
             return symm
         
+        # scaling的激活函数为torch.exp
         self.scaling_activation = torch.exp
         self.scaling_inverse_activation = torch.log
 
         self.covariance_activation = build_covariance_from_scaling_rotation
 
+        # opacity的激活函数为torch.sigmoid，f(x) = 1 / (1 + exp(-x))
+        # 将输出映射到(0,1)，常将模型输出转化为概率
         self.opacity_activation = torch.sigmoid
         self.inverse_opacity_activation = inverse_sigmoid
 
+        # 将表达旋转的四元数进行L2=1的归一化
         self.rotation_activation = torch.nn.functional.normalize
 
     # 构造函数
@@ -45,9 +53,9 @@ class GaussianModel:
         self.active_sh_degree = 0
         self.max_sh_degree = sh_degree  
         self._xyz = torch.empty(0)
-        # SH的常量
+        # SH的直流分量
         self._features_dc = torch.empty(0)
-        # SH除常量外部分
+        # SH除直流分量外部分
         self._features_rest = torch.empty(0)
         self._scaling = torch.empty(0)
         # 初始化为空的tensor
@@ -62,6 +70,7 @@ class GaussianModel:
         self.spatial_lr_scale = 0
         self.setup_functions()
 
+    # 捕获模型的当前状态
     def capture(self):
         return (
             self.active_sh_degree,
@@ -78,6 +87,7 @@ class GaussianModel:
             self.spatial_lr_scale,
         )
     
+    # 从给定模型中恢复训练参数
     def restore(self, model_args, training_args):
         (self.active_sh_degree, 
         self._xyz, 
@@ -99,10 +109,12 @@ class GaussianModel:
     # 装饰词，将get_scaling作为class的属性
     @property
     def get_scaling(self):
+        # 对_scaling进行激活函数处理
         return self.scaling_activation(self._scaling)
     
     @property
     def get_rotation(self):
+        # 对_rotation进行激活函数处理
         return self.rotation_activation(self._rotation)
     
     @property
@@ -113,15 +125,22 @@ class GaussianModel:
     def get_features(self):
         features_dc = self._features_dc
         features_rest = self._features_rest
+        # 将sh的直流和非直流tensor沿着dim=1进行拼接
+        # (batch_size, num_fea_dc) + (batch_size, num_fea_rest)
+        # --> (batch_size, num_fea_dc + num_fea_rest)
         return torch.cat((features_dc, features_rest), dim=1)
     
     @property
     def get_opacity(self):
+        # 对_opacity进行激活函数处理
         return self.opacity_activation(self._opacity)
     
+    # scaling_modifier默认为1
     def get_covariance(self, scaling_modifier = 1):
+        # 计算covariance
         return self.covariance_activation(self.get_scaling, scaling_modifier, self._rotation)
 
+    # 增加SH的degree
     def oneupSHdegree(self):
         if self.active_sh_degree < self.max_sh_degree:
             self.active_sh_degree += 1

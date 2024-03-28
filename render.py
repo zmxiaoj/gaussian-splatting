@@ -60,7 +60,8 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
         # 将tensor转换为二维numpy数组
         depth_image *= 255
         depth_image = depth_image[0].cpu().numpy().astype(np.uint8)
-        depth_image = cv2.applyColorMap(depth_image, cv2.COLORMAP_INFERNO)
+        # depth_image = cv2.applyColorMap(depth_image, cv2.COLORMAP_INFERNO)
+        depth_image = cv2.applyColorMap(depth_image, cv2.COLORMAP_JET)
         print("depth_image: ", depth_image)
         # 将深度图像保存到文件
         cv2.imwrite(os.path.join(depth_color_path, '{0:05d}'.format(idx) + ".png"), depth_image)

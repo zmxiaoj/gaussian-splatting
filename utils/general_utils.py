@@ -99,13 +99,15 @@ def build_rotation(r):
     return R
 
 def build_scaling_rotation(s, r):
+    # 在GPU上初始化大小为(s.shape[0], 3, 3)的全零张量(s.shape[0]个3x3矩阵)
     L = torch.zeros((s.shape[0], 3, 3), dtype=torch.float, device="cuda")
+    # 四元数转换为旋转矩阵
     R = build_rotation(r)
 
     L[:,0,0] = s[:,0]
     L[:,1,1] = s[:,1]
     L[:,2,2] = s[:,2]
-
+    # (Cov)^(1/2) = L = R * S
     L = R @ L
     return L
 

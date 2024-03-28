@@ -296,7 +296,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 gaussians.optimizer.zero_grad(set_to_none = True)
 
                 # 对高斯点的scaling进行clamp 20cm 
-                gaussians._scaling.data = torch.clamp(gaussians._scaling.data, math.log(0.002), math.log(0.2))
+                gaussians._scaling = torch.clamp(gaussians._scaling, math.log(0.002), math.log(0.2))
             
             if (iteration in checkpoint_iterations):
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
@@ -379,7 +379,7 @@ if __name__ == "__main__":
     # 增加输入参数，设置不参与优化的变量
     parser.add_argument("--exclude_vars", nargs="*", type=str, default=[])
     # 增加输入参数，设置是否进行提高sh_degree
-    parser.add_argument("--sh_degree_up", type=bool, default=True)
+    parser.add_argument("--sh_degree_up", type=bool, action="store_false", default=True)
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
     
