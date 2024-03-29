@@ -19,11 +19,17 @@ def inverse_sigmoid(x):
     return torch.log(x/(1-x))
 
 def PILtoTorch(pil_image, resolution):
+    # 缩放图像
     resized_image_PIL = pil_image.resize(resolution)
+    # 将PIL图像转换为numpy数组，再转换为tensor，归一化到[0, 1]
     resized_image = torch.from_numpy(np.array(resized_image_PIL)) / 255.0
+    # 如果是彩色图
     if len(resized_image.shape) == 3:
+        # 将tensor的维度顺序从(H, W, C)转换为(C, H, W)
         return resized_image.permute(2, 0, 1)
+    # 如果是灰度图
     else:
+        # 在最后增加一个维度，并将维度顺序从(H, W, 1)转换为(1, H, W)
         return resized_image.unsqueeze(dim=-1).permute(2, 0, 1)
 
 def get_expon_lr_func(

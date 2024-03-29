@@ -23,6 +23,7 @@ def mkdir_p(folder_path):
         else:
             raise
 
+# 找到文件夹中最大的迭代次数
 def searchForMaxIteration(folder):
     saved_iters = [int(fname.split("_")[-1]) for fname in os.listdir(folder)]
     return max(saved_iters)

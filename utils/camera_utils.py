@@ -36,29 +36,37 @@ def loadCam(args, id, cam_info, resolution_scale):
             global_down = orig_w / args.resolution
 
         scale = float(global_down) * float(resolution_scale)
+        # 对分辨率进行调整 
         resolution = (int(orig_w / scale), int(orig_h / scale))
 
+    # 获取图像tensor，维度为[C, H, W]
     resized_image_rgb = PILtoTorch(cam_info.image, resolution)
-
+    # 没有考虑灰度图的情况
+    # 取出[3, H, W]的图像
     gt_image = resized_image_rgb[:3, ...]
     loaded_mask = None
 
+    # 如果是RGBA图像，取出alpha通道作为mask
     if resized_image_rgb.shape[1] == 4:
         loaded_mask = resized_image_rgb[3:4, ...]
 
+    # 返回Camera对象
     return Camera(colmap_id=cam_info.uid, R=cam_info.R, T=cam_info.T, 
                   FoVx=cam_info.FovX, FoVy=cam_info.FovY, 
                   image=gt_image, gt_alpha_mask=loaded_mask,
                   image_name=cam_info.image_name, uid=id, data_device=args.data_device)
 
+# 从图像信息列表中加载相机列表
 def cameraList_from_camInfos(cam_infos, resolution_scale, args):
     camera_list = []
-
+    # 遍历图像信息列表
     for id, c in enumerate(cam_infos):
+        # 将图像信息转换为Camera对象，加入到camera_list中
         camera_list.append(loadCam(args, id, c, resolution_scale))
 
     return camera_list
 
+# 将相机信息转换为JSON格式
 def camera_to_JSON(id, camera : Camera):
     Rt = np.zeros((4, 4))
     Rt[:3, :3] = camera.R.transpose()

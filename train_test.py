@@ -29,7 +29,7 @@ try:
 except ImportError:
     TENSORBOARD_FOUND = False
 
-def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from, exclude_vars, sh_degree_up):
+def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from, exclude_vars, sh_degree_up, clamp = False):
     first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
     # 初始化gs
@@ -224,7 +224,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             if iteration < opt.iterations:
                 # 根据梯度更新参数
                 gaussians.optimizer.step()
-                # 每迭代100次更新梯度和状态信息相关
+                # 每迭代iterationCheck次更新梯度和状态信息相关
                 if iteration % iterationCheck == 0:
                     # 检验gaussians的_xyz梯度更新情况
                     if gaussians._xyz.grad is not None:
@@ -295,9 +295,13 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
                 # 清空梯度
                 gaussians.optimizer.zero_grad(set_to_none = True)
 
-                # 对高斯点的scaling进行clamp 20cm 
-                gaussians._scaling = torch.clamp(gaussians._scaling, math.log(0.002), math.log(0.2))
-            
+                # 在迭代30%后，对高斯点的scaling进行clamp 20cm 
+                if clamp and iteration > 0.3 * opt.iterations:
+                    gaussians._scaling = torch.clamp(gaussians._scaling, math.log(0.002), math.log(0.2))
+                    print("scaling after clamp: ", gaussians._scaling)
+                    with open(scene.model_path + '/record.txt', 'a') as f:
+                        f.write("scaling after clamp: " + str(gaussians._scaling) + "\n")
+
             if (iteration in checkpoint_iterations):
                 print("\n[ITER {}] Saving Checkpoint".format(iteration))
                 torch.save((gaussians.capture(), iteration), scene.model_path + "/chkpnt" + str(iteration) + ".pth")
@@ -379,7 +383,9 @@ if __name__ == "__main__":
     # 增加输入参数，设置不参与优化的变量
     parser.add_argument("--exclude_vars", nargs="*", type=str, default=[])
     # 增加输入参数，设置是否进行提高sh_degree
-    parser.add_argument("--sh_degree_up", type=bool, action="store_false", default=True)
+    parser.add_argument("--sh_degree_up", action="store_false", default=True)
+    # 增加输入参数，设置是否进行clamp
+    parser.add_argument("--clamp", action="store_true", default=False)
     args = parser.parse_args(sys.argv[1:])
     args.save_iterations.append(args.iterations)
     
@@ -391,7 +397,7 @@ if __name__ == "__main__":
     # Start GUI server, configure and run training
     network_gui.init(args.ip, args.port)
     torch.autograd.set_detect_anomaly(args.detect_anomaly)
-    training(lp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args.exclude_vars, args.sh_degree_up)
+    training(lp.extract(args), op.extract(args), pp.extract(args), args.test_iterations, args.save_iterations, args.checkpoint_iterations, args.start_checkpoint, args.debug_from, args.exclude_vars, args.sh_degree_up, args.clamp)
 
     # All done
     print("\nTraining complete.")

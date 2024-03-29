@@ -24,55 +24,58 @@ import cv2
 import numpy as np
 
 def render_set(model_path, name, iteration, views, gaussians, pipeline, background):
-    render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
-    gts_path = os.path.join(model_path, name, "ours_{}".format(iteration), "gt")
     # 增加深度图的渲染
     depth_path = os.path.join(model_path, name, "ours_{}".format(iteration), "depth")
     depth_color_path = os.path.join(model_path, name, "ours_{}".format(iteration), "depth_color")
 
-
-    makedirs(render_path, exist_ok=True)
-    makedirs(gts_path, exist_ok=True)
     makedirs(depth_path, exist_ok=True)
     makedirs(depth_color_path, exist_ok=True)
 
-    torch.set_printoptions(profile="full", precision=10, sci_mode=False, threshold=100000, edgeitems=10)
+    torch.set_printoptions(profile="full", precision=10, sci_mode=False, threshold=100, edgeitems=10)
     
     # 初始化一个list保存各视角下的深度图渲染结果
+    depth_images = {}
+    depth_max = -1.0
+    depth_min = 100000.0
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
         render_pkg = render(view, gaussians, pipeline, background)
-        rendering = render_pkg["render"]
         depth_image = render_pkg["depth_image"]
-        gt = view.original_image[0:3, :, :]
-        torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
-        torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
+        # 统计深度图像的最大值和最小值
+        depth_max = max(depth_max, torch.max(depth_image))
+        depth_min = min(depth_min, torch.min(depth_image))
+        depth_images[idx] = depth_image
+    print("depth max: ", depth_max, "depth min: ", depth_min)
+    depth_min_tensor = torch.full_like(depth_images[0], 1 / max(depth_max, 1e-6))
+    depth_max_tensor = torch.full_like(depth_images[0], 1 / max(depth_min, 1e-6))
+    print("inverse depth max: ", depth_max_tensor[0][0], "inverse depth min: ", depth_min_tensor[0][0])
+    # 遍历深度图
+    for idx, depth_image in enumerate(depth_images.values()):
         # 将depth_image的内容输出到文件
         with open(model_path + '/depth_image.txt', 'a') as f:
-            f.write("Depth image: \n")
+            f.write("Depth image " + str(idx) + ":\n")
             f.write(str(depth_image))
-            
-        # print("depth_image shape: ", depth_image.shape, "depth_image type: ", depth_image.dtype)
-        # print("depth_image: ", depth_image)
-        # 只进行单张图像的归一化
+            f.write("\n")
         # 将depth_image每个像素取倒数
-        # depth_image = 1 / torch.clamp(depth_image, min=1e-7)
-        # with open(model_path + '/depth_image.txt', 'a') as f:
-        #     f.write("Inverse Depth image: \n")
-        #     f.write(str(depth_image))
-        #     f.write("\n")
+        depth_image = 1 / torch.clamp(depth_image, min=1e-7)
+        with open(model_path + '/depth_image.txt', 'a') as f:
+            f.write("Inverse Depth image: \n")
+            f.write(str(depth_image))
+            f.write("\n")
 
         # 将depth_image这个tensor归一化到0-1之间
-        depth_image = (depth_image - torch.min(depth_image)) / (torch.max(depth_image) - torch.min(depth_image))
+        # depth_image = (depth_image - torch.min(depth_image)) / (torch.max(depth_image) - torch.min(depth_image))
+        # 取depth_max和depth_min的倒数
+        depth_image = (depth_image - depth_min_tensor) / (depth_max_tensor - depth_min_tensor)
         with open(model_path + '/depth_image.txt', 'a') as f:
             f.write("Normalized Inverse Depth image: \n")
             f.write(str(depth_image))
             f.write("\n")
         # # 颜色取反，深度越大的地方颜色越深
-        depth_image = (1 - depth_image) 
-        with open(model_path + '/depth_image.txt', 'a') as f:
-            f.write("Normalized Inverse Depth image: 1 - depth\n")
-            f.write(str(depth_image))
-            f.write("\n")
+        # depth_image = (1 - depth_image) 
+        # with open(model_path + '/depth_image.txt', 'a') as f:
+        #     f.write("Normalized Inverse Depth image: 1 - depth\n")
+        #     f.write(str(depth_image))
+        #     f.write("\n")
         torchvision.utils.save_image(depth_image, os.path.join(depth_path, '{0:05d}'.format(idx) + ".png"))
         # 使用调色板将深度图像转换为伪彩色图像
         # 将tensor转换为二维numpy数组
@@ -80,7 +83,10 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
         depth_image = depth_image[0].cpu().numpy().astype(np.uint8)
         # depth_image = cv2.applyColorMap(depth_image, cv2.COLORMAP_INFERNO)
         depth_image = cv2.applyColorMap(depth_image, cv2.COLORMAP_JET)
-        print("depth_image: ", depth_image)
+        with open(model_path + '/depth_image.txt', 'a') as f:
+            f.write("Colormap Depth image: 1 - depth\n")
+            f.write(str(depth_image))
+            f.write("\n")
         # 将深度图像保存到文件
         cv2.imwrite(os.path.join(depth_color_path, '{0:05d}'.format(idx) + ".png"), depth_image)
         

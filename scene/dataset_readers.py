@@ -36,6 +36,7 @@ class CameraInfo(NamedTuple):
     width: int
     height: int
 
+# 命名元组是元组的子类，可以通过名称访问元组的元素
 class SceneInfo(NamedTuple):
     point_cloud: BasicPointCloud
     train_cameras: list
@@ -45,18 +46,26 @@ class SceneInfo(NamedTuple):
 
 def getNerfppNorm(cam_info):
     def get_center_and_diag(cam_centers):
+        # 将全部元素沿着水平方向(dim=1)堆叠
         cam_centers = np.hstack(cam_centers)
+        # 求取所有相机中心的平均值
         avg_cam_center = np.mean(cam_centers, axis=1, keepdims=True)
         center = avg_cam_center
+        # 计算所有相机中心到平均中心的距离
         dist = np.linalg.norm(cam_centers - center, axis=0, keepdims=True)
+        # 找到最大距离，作为对角线
         diagonal = np.max(dist)
+        # 展平为一维数组
         return center.flatten(), diagonal
 
     cam_centers = []
 
     for cam in cam_info:
+        # 获取world2camera变换，外参
         W2C = getWorld2View2(cam.R, cam.T)
+        # 获取camera2world变换
         C2W = np.linalg.inv(W2C)
+        # 保存相机中心
         cam_centers.append(C2W[:3, 3:4])
 
     center, diagonal = get_center_and_diag(cam_centers)
@@ -135,7 +144,9 @@ def storePly(path, xyz, rgb):
     ply_data = PlyData([vertex_element])
     ply_data.write(path)
 
+# 读取colmap数据集信息
 def readColmapSceneInfo(path, images, eval, llffhold=8):
+    # 读取相机的内参、外参信息，优先读取bin格式再读取txt格式
     try:
         cameras_extrinsic_file = os.path.join(path, "sparse/0", "images.bin")
         cameras_intrinsic_file = os.path.join(path, "sparse/0", "cameras.bin")
@@ -148,19 +159,24 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
         cam_intrinsics = read_intrinsics_text(cameras_intrinsic_file)
 
     reading_dir = "images" if images == None else images
+    # 将相机图像、内参、外参信息读取到cam_infos列表中
     cam_infos_unsorted = readColmapCameras(cam_extrinsics=cam_extrinsics, cam_intrinsics=cam_intrinsics, images_folder=os.path.join(path, reading_dir))
+    # 根据图像名称排序
     cam_infos = sorted(cam_infos_unsorted.copy(), key = lambda x : x.image_name)
 
     # 根据eval参数，决定是否分割训练集和测试集
     if eval:
+        # 默认每8张图像取1张作为测试集
         train_cam_infos = [c for idx, c in enumerate(cam_infos) if idx % llffhold != 0]
         test_cam_infos = [c for idx, c in enumerate(cam_infos) if idx % llffhold == 0]
     else:
         train_cam_infos = cam_infos
         test_cam_infos = []
 
+    # nerf++归一化操作
     nerf_normalization = getNerfppNorm(train_cam_infos)
 
+    # 读取点云的xyz和rgb
     ply_path = os.path.join(path, "sparse/0/points3D.ply")
     bin_path = os.path.join(path, "sparse/0/points3D.bin")
     txt_path = os.path.join(path, "sparse/0/points3D.txt")
@@ -176,6 +192,7 @@ def readColmapSceneInfo(path, images, eval, llffhold=8):
     except:
         pcd = None
 
+    # 将相机信息、点云信息、归一化信息保存为scene_info的命名元组
     scene_info = SceneInfo(point_cloud=pcd,
                            train_cameras=train_cam_infos,
                            test_cameras=test_cam_infos,
@@ -261,6 +278,7 @@ def readNerfSyntheticInfo(path, white_background, eval, extension=".png"):
                            ply_path=ply_path)
     return scene_info
 
+# 函数字典，动态调用不同的函数
 sceneLoadTypeCallbacks = {
     "Colmap": readColmapSceneInfo,
     "Blender" : readNerfSyntheticInfo
