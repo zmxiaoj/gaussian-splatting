@@ -100,6 +100,7 @@ class Scene:
                                                            "point_cloud.ply"))
         # 创建新的高斯模型
         else:
+            # 仅初始化高斯模型
             if init:
                 self.gaussians.create_from_pcd_init(scene_info.point_cloud, self.cameras_extent)
             else:

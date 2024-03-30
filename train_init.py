@@ -48,32 +48,32 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
     print("Initial Gaussians: ")
     # 输出gaussians的_xyz，最大值，最小值，均值
-    print("xyz: ", gaussians._xyz)
+    # print("xyz: ", gaussians._xyz)
     print("xyz max: ", torch.max(gaussians._xyz))
     print("xyz min: ", torch.min(gaussians._xyz))
     print("xyz mean: ", torch.mean(gaussians._xyz))
     # 输出gaussians的_rotation，最大值，最小值，均值
-    print("rotation: ", gaussians._rotation)
+    # print("rotation: ", gaussians._rotation)
     print("rotation max: ", torch.max(gaussians._rotation))
     print("rotation min: ", torch.min(gaussians._rotation))
     print("rotation mean: ", torch.mean(gaussians._rotation))
     # 输出gaussians的_scaling，最大值，最小值，均值
-    print("scaling: ", gaussians._scaling)
+    # print("scaling: ", gaussians._scaling)
     print("scaling max: ", torch.max(gaussians._scaling))
     print("scaling min: ", torch.min(gaussians._scaling))
     print("scaling mean: ", torch.mean(gaussians._scaling))
     # 输出gaussians的_opacity，最大值，最小值，均值
-    print("opacity: ", gaussians._opacity)
+    # print("opacity: ", gaussians._opacity)
     print("opacity max: ", torch.max(gaussians._opacity))
     print("opacity min: ", torch.min(gaussians._opacity))
     print("opacity mean: ", torch.mean(gaussians._opacity))
     # 输出gaussians的_features_dc，最大值，最小值，均值
-    print("features_dc: ", gaussians._features_dc)
+    # print("features_dc: ", gaussians._features_dc)
     print("features_dc max: ", torch.max(gaussians._features_dc))
     print("features_dc min: ", torch.min(gaussians._features_dc))
     print("features_dc mean: ", torch.mean(gaussians._features_dc))
     # 输出gaussians的_features_rest，最大值，最小值，均值
-    print("features_rest: ", gaussians._features_rest) 
+    # print("features_rest: ", gaussians._features_rest) 
     print("features_rest max: ", torch.max(gaussians._features_rest))
     print("features_rest min: ", torch.min(gaussians._features_rest))
     print("features_rest mean: ", torch.mean(gaussians._features_rest))

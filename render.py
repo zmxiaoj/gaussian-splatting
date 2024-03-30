@@ -38,11 +38,12 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
 
     torch.set_printoptions(profile="full", precision=10, sci_mode=False, threshold=100000, edgeitems=10)
     
-    # 初始化一个list保存各视角下的深度图渲染结果
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
         render_pkg = render(view, gaussians, pipeline, background)
         rendering = render_pkg["render"]
         depth_image = render_pkg["depth_image"]
+        # 输出depth_image的范围
+        print("depth_image max: ", torch.max(depth_image), "depth_image min: ", torch.min(depth_image))
         gt = view.original_image[0:3, :, :]
         torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
         torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
@@ -50,16 +51,7 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
         with open(model_path + '/depth_image.txt', 'a') as f:
             f.write("Depth image: \n")
             f.write(str(depth_image))
-            
-        # print("depth_image shape: ", depth_image.shape, "depth_image type: ", depth_image.dtype)
-        # print("depth_image: ", depth_image)
-        # 只进行单张图像的归一化
-        # 将depth_image每个像素取倒数
-        # depth_image = 1 / torch.clamp(depth_image, min=1e-7)
-        # with open(model_path + '/depth_image.txt', 'a') as f:
-        #     f.write("Inverse Depth image: \n")
-        #     f.write(str(depth_image))
-        #     f.write("\n")
+            f.write("\n")
 
         # 将depth_image这个tensor归一化到0-1之间
         depth_image = (depth_image - torch.min(depth_image)) / (torch.max(depth_image) - torch.min(depth_image))
@@ -68,7 +60,7 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
             f.write(str(depth_image))
             f.write("\n")
         # # 颜色取反，深度越大的地方颜色越深
-        depth_image = (1 - depth_image) 
+        # depth_image = (1 - depth_image) 
         with open(model_path + '/depth_image.txt', 'a') as f:
             f.write("Normalized Inverse Depth image: 1 - depth\n")
             f.write(str(depth_image))
