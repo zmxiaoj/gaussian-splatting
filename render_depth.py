@@ -70,8 +70,10 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
             f.write("\n")
         # 将depth_image每个像素取倒数
         depth_image = 1 / (depth_image + 1.0)
-        inv_depth_max = min(inv_depth_max, np.max(depth_image))
-        inv_depth_min = max(inv_depth_min, np.min(depth_image))
+        # inv_depth_max = min(inv_depth_max, np.max(depth_image))
+        # inv_depth_min = max(inv_depth_min, np.min(depth_image))
+        inv_depth_max = np.max(depth_image)
+        inv_depth_min = np.min(depth_image)
         with open(model_path + '/depth_image.txt', 'a') as f:
             f.write("Inverse Depth image: \n")
             f.write("max: " + str(np.max(depth_image)) + " min: " + str(np.min(depth_image)))

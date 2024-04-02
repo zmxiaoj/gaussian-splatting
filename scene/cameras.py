@@ -50,10 +50,14 @@ class Camera(nn.Module):
 
         self.trans = trans
         self.scale = scale
-
+        
+        # 计算世界坐标系到相机坐标系的变换矩阵T_w2c，并转换为tensor
         self.world_view_transform = torch.tensor(getWorld2View2(R, T, trans, scale)).transpose(0, 1).cuda()
+        # 计算相机坐标系到裁剪坐标系的变换矩阵T_c2p，并转换为tensor
         self.projection_matrix = getProjectionMatrix(znear=self.znear, zfar=self.zfar, fovX=self.FoVx, fovY=self.FoVy).transpose(0,1).cuda()
+        # 将世界坐标系到裁剪坐标系的变换矩阵T_w2p计算出来
         self.full_proj_transform = (self.world_view_transform.unsqueeze(0).bmm(self.projection_matrix.unsqueeze(0))).squeeze(0)
+        # 
         self.camera_center = self.world_view_transform.inverse()[3, :3]
 
 class MiniCam:

@@ -35,6 +35,7 @@ def getWorld2View(R, t):
     Rt[3, 3] = 1.0
     return np.float32(Rt)
 
+# 增加了对相机中心的平移和缩放
 def getWorld2View2(R, t, translate=np.array([.0, .0, .0]), scale=1.0):
     Rt = np.zeros((4, 4))
     Rt[:3, :3] = R.transpose()
@@ -49,6 +50,17 @@ def getWorld2View2(R, t, translate=np.array([.0, .0, .0]), scale=1.0):
     return np.float32(Rt)
 
 def getProjectionMatrix(znear, zfar, fovX, fovY):
+    """ 得到投影矩阵P
+
+    Args:
+        znear (_type_): _description_
+        zfar (_type_): _description_
+        fovX (_type_): _description_
+        fovY (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
     tanHalfFovY = math.tan((fovY / 2))
     tanHalfFovX = math.tan((fovX / 2))
 
@@ -60,13 +72,17 @@ def getProjectionMatrix(znear, zfar, fovX, fovY):
     P = torch.zeros(4, 4)
 
     z_sign = 1.0
-
+    # 对应MVP变换中的P矩阵
+    # 这里的P矩阵是将视锥体的坐标系变换到NDC坐标系[-1, 1]^3
+    # 在OPENGL中，NDC坐标系为左手坐标系，所以z轴的方向是从近裁剪面到远裁剪面
     P[0, 0] = 2.0 * znear / (right - left)
     P[1, 1] = 2.0 * znear / (top - bottom)
     P[0, 2] = (right + left) / (right - left)
     P[1, 2] = (top + bottom) / (top - bottom)
     P[3, 2] = z_sign
+    # P[2, 2] = -(zfar + znear) / (zfar - znear)
     P[2, 2] = z_sign * zfar / (zfar - znear)
+    # P[2, 3] = -(2.0 * zfar * znear) / (zfar - znear)
     P[2, 3] = -(zfar * znear) / (zfar - znear)
     return P
 
