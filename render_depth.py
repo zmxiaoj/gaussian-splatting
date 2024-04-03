@@ -40,6 +40,8 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
         render_pkg = render(view, gaussians, pipeline, background)
         depth_image = render_pkg["depth_image"]
+
+        
         # 统计深度图像的最大值和最小值
         depth_max = max(depth_max, torch.max(depth_image))
         depth_min = min(depth_min, torch.min(depth_image))
@@ -53,10 +55,9 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
     # 将depth_max和depth_min转换为numpy
     depth_max = depth_max.detach().cpu().numpy()
     depth_min = depth_min.detach().cpu().numpy()
-    inv_depth_max = 1 / (depth_min + 1.0)
-    inv_depth_min = 1 / (depth_max + 1.0)
+    inv_depth_max = 1 / (depth_min + 1e-6)
+    inv_depth_min = 1 / (depth_max + 1e-6)
     print("depth max: ", depth_max, "depth min: ", depth_min)
-    print("inv_depth max: ", inv_depth_max, "inv_depth min: ", inv_depth_min)
     # 遍历深度图
     for idx, depth_image in enumerate(depth_images.values()):
         # # 输出depth_image的维度
@@ -69,9 +70,7 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
             f.write("mean: " + str(np.mean(depth_image)))
             f.write("\n")
         # 将depth_image每个像素取倒数
-        depth_image = 1 / (depth_image + 1.0)
-        # inv_depth_max = min(inv_depth_max, np.max(depth_image))
-        # inv_depth_min = max(inv_depth_min, np.min(depth_image))
+        depth_image = 1 / (depth_image + 1e-6)
         inv_depth_max = np.max(depth_image)
         inv_depth_min = np.min(depth_image)
         with open(model_path + '/depth_image.txt', 'a') as f:

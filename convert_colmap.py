@@ -125,12 +125,14 @@ if __name__ == "__main__":
         print('path_sfm_pointcloud:' + path_sfm_pointcloud)
     else:
         print('path_sfm_pointcloud:' + path_sfm_pointcloud + ' does not exist')
-        sys.exit(0)
+        if pointcloutType == 'sfm':
+            sys.exit(0)
     if os.path.exists(path_lidar_pointcloud):
         print('path_lidar_pointcloud:' + path_lidar_pointcloud)
     else:
         print('path_lidar_pointcloud:' + path_lidar_pointcloud + ' does not exist')
-        sys.exit(0)
+        if pointcloutType == 'lidar':
+            sys.exit(0)
     if os.path.exists(path_image_folder):
         print('path_image_folder:' + path_image_folder)
     else:
