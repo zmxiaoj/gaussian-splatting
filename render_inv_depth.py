@@ -75,10 +75,12 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
             f.write("\n")
             f.write("mean: " + str(np.mean(depth_image)))
             f.write("\n")
-        # # 将depth_image每个像素取倒数
-        # depth_image = 1 / (depth_image + 1e-6)
-        # # inv_depth_max = min(inv_depth_max, np.max(depth_image))
-        # # inv_depth_min = max(inv_depth_min, np.min(depth_image))
+        # 将depth_image每个像素取倒数
+        depth_image = 1 / (depth_image + 1e-6)
+        # inv_depth_max = min(inv_depth_max, np.max(depth_image))
+        # inv_depth_min = max(inv_depth_min, np.min(depth_image))
+        inv_depth_max = np.max(depth_image)
+        inv_depth_min = np.min(depth_image)
         with open(model_path + '/depth_image.txt', 'a') as f:
             f.write("Inverse Depth image: \n")
             f.write("max: " + str(np.max(depth_image)) + " min: " + str(np.min(depth_image)))
@@ -88,10 +90,8 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
         # 输出depth_image的范围和均值
         print("max: ", np.max(depth_image), " min: ", np.min(depth_image))
         print("mean: ", np.mean(depth_image))
-        # # 使用逆深度，将depth_image归一化到0-1之间
-        # depth_image = (depth_image - np.min(depth_image)) / (np.max(depth_image) - np.min(depth_image) + 1e-6)
         # 将depth_image归一化到0-1之间
-        depth_image = (depth_image - np.min(depth_image)) / (np.max(depth_image) - np.min(depth_image) + 1e-6)
+        depth_image = (depth_image - inv_depth_min) / (inv_depth_max - inv_depth_min + 1e-6)
 
         with open(model_path + '/depth_image.txt', 'a') as f:
             f.write("Normalized Inverse Depth image: \n")
