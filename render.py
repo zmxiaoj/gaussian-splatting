@@ -58,11 +58,7 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
         # 结束程序
         print("Invalid depth range: ", depth_max, depth_min)
         return
-    # 将depth_max和depth_min转换为numpy
-    depth_max = depth_max.detach().cpu().numpy()
-    depth_min = depth_min.detach().cpu().numpy()
-    inv_depth_max = 1 / (depth_min + 1e-6)
-    inv_depth_min = 1 / (depth_max + 1e-6)
+        
     print("depth max: ", depth_max, "depth min: ", depth_min)
     # 遍历深度图
     for idx, depth_image in enumerate(depth_images.values()):
@@ -75,8 +71,6 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
             f.write("\n")
             f.write("mean: " + str(np.mean(depth_image)))
             f.write("\n")
-        # # 将depth_image每个像素取倒数
-        # depth_image = 1 / (depth_image + 1e-6)
         # # inv_depth_max = min(inv_depth_max, np.max(depth_image))
         # # inv_depth_min = max(inv_depth_min, np.min(depth_image))
         with open(model_path + '/depth_image.txt', 'a') as f:

@@ -55,8 +55,8 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
     # 将depth_max和depth_min转换为numpy
     depth_max = depth_max.detach().cpu().numpy()
     depth_min = depth_min.detach().cpu().numpy()
-    inv_depth_max = 1 / (depth_min + 1e-6)
-    inv_depth_min = 1 / (depth_max + 1e-6)
+    # inv_depth_max = 1 / (depth_min + 1e-6)
+    # inv_depth_min = 1 / (depth_max + 1e-6)
     print("depth max: ", depth_max, "depth min: ", depth_min)
     # 遍历深度图
     for idx, depth_image in enumerate(depth_images.values()):
